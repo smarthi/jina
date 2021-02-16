@@ -10,6 +10,7 @@ from typing import (
     Tuple,
     Optional,
     Sequence,
+    Iterable,
 )
 
 from google.protobuf.struct_pb2 import Struct
@@ -326,18 +327,33 @@ class FastRecursiveMixin:
     """
 
     def __call__(self, *args, **kwargs):
-        self._apply_all(self.docs, *args, **kwargs)
+        document_set_leaves = self.docs.traverse(self._traversal_paths)
+        self._apply_all(document_set_leaves, *args, **kwargs)
+
+    def _apply_all(
+        self,
+        leaves: Iterable['DocumentSet'],
+        *args,
+        **kwargs,
+    ) -> None:
+        """Apply function works on a list of list of docs, modify the docs in-place.
+
+        Each outer list refers to a leaf (e.g. roots, matches or chunks wrapped
+        in a :class:`jina.DocumentSet`) in the traversal_paths.
+
+        :param leaves: an iterable of :class:`jina.DocumentSet` where each :class:`jina.DocumentSet` is a leaf in the traversal paths
+        :param *args: *args
+        :param **kwargs: **kwargs
+        """
 
     @property
     def docs(self) -> 'DocumentSet':
         from ..types.sets import DocumentSet
 
         if self.expect_parts > 1:
-            return DocumentSet(
-                (d for r in reversed(self.partial_reqs) for d in r.docs)
-            ).traverse(self._traversal_paths)
+            return DocumentSet((d for r in reversed(self.partial_reqs) for d in r.docs))
         else:
-            return self.req.docs.traverse(self._traversal_paths)
+            return self.req.docs
 
 
 class BaseRecursiveDriver(BaseDriver):
